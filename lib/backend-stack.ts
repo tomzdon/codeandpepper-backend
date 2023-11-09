@@ -1,12 +1,24 @@
 import * as cdk from 'aws-cdk-lib';
 import {Construct} from 'constructs';
 import * as path from 'path'
+import * as lambda from "aws-cdk-lib/aws-lambda";
 import {AmplifyGraphqlApi, AmplifyGraphqlDefinition} from "@aws-amplify/graphql-api-construct";
 import {DynamoDBSeeder, Seeds} from '@cloudcomponents/cdk-dynamodb-seeder';
+import {PolicyStatement} from "aws-cdk-lib/aws-iam";
 
 export class BackendStack extends cdk.Stack {
     constructor(scope: Construct, id: string, props?: cdk.StackProps) {
         super(scope, id, props);
+
+        const battleLambda = new lambda.Function(this, "SelectAndBattleLambda", {
+            functionName: "SelectAndBattleLambda",
+            code: lambda.Code.fromAsset(
+                path.join(__dirname, "handlers/battleLambda")
+            ),
+            handler: "index.handler",
+            runtime: lambda.Runtime.NODEJS_18_X,
+            timeout: cdk.Duration.seconds(300),
+        });
 
         const api = new AmplifyGraphqlApi(this, "SWAPI", {
             apiName: "SWAPI",
@@ -19,6 +31,7 @@ export class BackendStack extends cdk.Stack {
                     expires: cdk.Duration.days(30),
                 },
             },
+            functionNameMap: {battleLambda},
         });
 
         const PersonTable = api.resources.tables['Person'];
@@ -44,5 +57,17 @@ export class BackendStack extends cdk.Stack {
             table: StarshipTable,
             seeds: seedsStarship,
         });
+
+        battleLambda.addEnvironment('API_ID', api.apiId)
+
+        battleLambda.grantPrincipal.addToPrincipalPolicy(
+            new PolicyStatement({
+                resources: [
+                    `arn:aws:dynamodb:us-east-1:400274549739:table/Person-${api.apiId}-NONE`,
+                    `arn:aws:dynamodb:us-east-1:400274549739:table/Starship-${api.apiId}-NONE`,
+                ],
+                actions: ["dynamodb:GetItem", "dynamodb:ListTables", "dynamodb:Scan", "dynamodb:PutItem"],
+            })
+        );
     }
 }

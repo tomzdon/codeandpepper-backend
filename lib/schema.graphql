@@ -16,3 +16,20 @@ type Starship
     length: Float
     crew: String
 }
+
+type Query {
+    randomEntityDuel(resourceType: ResourceType!): DuelResult@ function(name: "battleLambda") @auth(rules: [{ allow: public }])
+}
+
+type DuelResult {
+    player1: String
+    player2: String
+    winner: String
+}
+
+union Entity = Person | Starship
+
+enum ResourceType {
+    PERSON
+    STARSHIP
+}
