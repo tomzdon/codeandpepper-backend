@@ -9,7 +9,9 @@ const docClient = DynamoDBDocumentClient.from(client);
 export const apiId = process.env.API_ID;
 
 export const handler: Handler = async (event) => {
-    const resourceType: ResourceType = event.resourceType as ResourceType;
+
+    const resourceType: ResourceType =event.arguments.resourceType as ResourceType;
+
     const tableName = resourceType === ResourceType.PERSON ? 'Person' : 'Starship';
 
     const scanResults = await docClient.send(new ScanCommand({TableName: `${tableName}-${apiId}-NONE`}));
@@ -22,14 +24,18 @@ export const handler: Handler = async (event) => {
     const selectedIndices = getRandomIndices(items.length);
     const entity1 = items[selectedIndices[0]];
     const entity2 = items[selectedIndices[1]];
-
     const winner = determineWinner(entity1, entity2, resourceType);
+    // Before returning, add the __typename field to each entity
+    const entity1WithType = {...entity1, __typename: getResourceTypeName(entity1)};
+    const entity2WithType = {...entity2, __typename: getResourceTypeName(entity2)};
+    const winnerWithType = winner ? {...winner, __typename: getResourceTypeName(winner)} : null;
 
     return {
-        player1: entity1.name,
-        player2: entity2.name,
-        winner: winner ? winner : 'Tie'
+        player1: entity1WithType,
+        player2: entity2WithType,
+        winner: winnerWithType
     };
+
 };
 
 function getRandomIndices(length: number): number[] {
@@ -65,4 +71,12 @@ function parseCrewSize(crew: string): number {
 
 function isPerson(entity: Entity): entity is Person {
     return (entity as Person).mass !== undefined;
+}
+
+function getResourceTypeName(entity: Entity): string {
+    if (isPerson(entity)) {
+        return 'Person';
+    } else {
+        return 'Starship';
+    }
 }

@@ -22,9 +22,9 @@ type Query {
 }
 
 type DuelResult {
-    player1: String
-    player2: String
-    winner: String
+    player1: Entity
+    player2: Entity
+    winner: Entity
 }
 
 union Entity = Person | Starship
